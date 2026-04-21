@@ -1,4 +1,20 @@
 //! Heartbeat detection from micro-Doppler signatures in CSI.
+//!
+//! # ⚠️ NOT VALIDATED — DO NOT TRUST ANY OUTPUT
+//!
+//! This module has **never been shown to detect a real human heartbeat from
+//! real CSI data**. Every test in this file generates a synthetic sine wave
+//! and then "detects" it. There is no code path in the repository that
+//! connects this detector to recorded CSI or to ground-truth cardiac data
+//! (ECG, pulse oximeter, etc.). The project's own ADR-013 states that
+//! commodity WiFi has "micro-Doppler resolution insufficient for consistent
+//! heartbeat."
+//!
+//! Any BPM value returned by [`HeartbeatDetector::detect`] is the output of
+//! heuristics operating on unvalidated input and must not be used for
+//! medical, safety, or legal purposes. See `HEARTBEAT_NOT_VALIDATED.md` in
+//! the repository root for the full code review and the list of changes
+//! required to make this module real.
 
 use crate::domain::{HeartbeatSignature, SignalStrength};
 
@@ -143,6 +159,18 @@ impl HeartbeatDetector {
         sample_rate: f64,
         breathing_rate: Option<f64>,
     ) -> Option<HeartbeatSignature> {
+        // NOT VALIDATED: emit a one-shot warning the first time this detector
+        // produces any output. See HEARTBEAT_NOT_VALIDATED.md at the repo root.
+        static HEARTBEAT_WARN_ONCE: std::sync::Once = std::sync::Once::new();
+        HEARTBEAT_WARN_ONCE.call_once(|| {
+            tracing::warn!(
+                target: "ruview::heartbeat",
+                "HeartbeatDetector::detect called: this detector has never been \
+                 validated against real CSI or ground-truth cardiac data. Any BPM \
+                 it emits is unvalidated. See HEARTBEAT_NOT_VALIDATED.md."
+            );
+        });
+
         if csi_phase.len() < self.config.window_size {
             return None;
         }

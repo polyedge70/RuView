@@ -899,8 +899,27 @@ impl VitalSignsClassifier {
         })
     }
 
-    /// Estimate heart rate from features
+    /// Estimate heart rate from features.
+    ///
+    /// ⚠️ NOT VALIDATED. The body of this function is a heuristic:
+    /// it returns a hardcoded 70 BPM baseline plus an arbitrary scaling of
+    /// `phase_power`, nudged ±10% by a band-power ratio whose thresholds
+    /// have no empirical justification. This function has never been tested
+    /// against real CSI or ground-truth cardiac data. The enclosing
+    /// `classify_onnx` path runs the ONNX model and then discards its
+    /// output, falling back to this heuristic regardless. Do not trust
+    /// any value this returns. See `HEARTBEAT_NOT_VALIDATED.md`.
     fn estimate_heart_rate(&self, features: &VitalSignsFeatures) -> f32 {
+        static HR_ESTIMATE_WARN_ONCE: std::sync::Once = std::sync::Once::new();
+        HR_ESTIMATE_WARN_ONCE.call_once(|| {
+            tracing::warn!(
+                target: "ruview::heartbeat",
+                "VitalSignsClassifier::estimate_heart_rate called: this is a \
+                 hardcoded 70-BPM heuristic, not a validated heart-rate \
+                 estimator. Output is unvalidated. See HEARTBEAT_NOT_VALIDATED.md."
+            );
+        });
+
         // Heart rate from phase variations
         let phase_power = features.phase_features.iter()
             .take(10)

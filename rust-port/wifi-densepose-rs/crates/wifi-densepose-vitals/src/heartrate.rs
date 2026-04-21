@@ -1,5 +1,22 @@
 //! Heart rate extraction from CSI phase coherence.
 //!
+//! # ⚠️ NOT VALIDATED — DO NOT TRUST ANY OUTPUT
+//!
+//! This module has **never been shown to extract a real human heart rate
+//! from real CSI data**. The only test feeds four subcarriers with hardcoded
+//! "highly coherent" phases and a clean sine wave — the opposite of what
+//! real cardiac motion produces. No recorded CSI fixtures and no paired
+//! ground-truth cardiac data (ECG, pulse oximeter, chest strap) exist in
+//! this repository.
+//!
+//! Any BPM value returned by [`HeartRateExtractor::extract`] is the output
+//! of heuristics operating on unvalidated input and must not be used for
+//! medical, safety, or legal purposes. See `HEARTBEAT_NOT_VALIDATED.md` in
+//! the repository root for the full code review and the list of changes
+//! required to make this module real.
+//!
+//! ---
+//!
 //! Uses bandpass filtering (0.8-2.0 Hz) and autocorrelation-based
 //! peak detection to extract cardiac rate from inter-subcarrier
 //! phase data. Requires multi-subcarrier CSI data (ESP32 mode only).
@@ -88,6 +105,18 @@ impl HeartRateExtractor {
     /// Returns a `VitalEstimate` with heart rate in BPM, or `None`
     /// if insufficient data or too few subcarriers.
     pub fn extract(&mut self, residuals: &[f64], phases: &[f64]) -> Option<VitalEstimate> {
+        // NOT VALIDATED: emit a one-shot warning the first time this extractor
+        // is invoked. See HEARTBEAT_NOT_VALIDATED.md at the repo root.
+        static HEARTRATE_WARN_ONCE: std::sync::Once = std::sync::Once::new();
+        HEARTRATE_WARN_ONCE.call_once(|| {
+            tracing::warn!(
+                target: "ruview::heartrate",
+                "HeartRateExtractor::extract called: this extractor has never \
+                 been validated against real CSI or ground-truth cardiac data. \
+                 Any BPM it emits is unvalidated. See HEARTBEAT_NOT_VALIDATED.md."
+            );
+        });
+
         let n = residuals.len().min(self.n_subcarriers).min(phases.len());
         if n == 0 {
             return None;

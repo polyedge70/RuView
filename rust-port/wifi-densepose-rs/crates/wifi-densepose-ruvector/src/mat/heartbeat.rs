@@ -1,5 +1,17 @@
 //! Tiered compressed heartbeat spectrogram (ruvector-temporal-tensor).
 //!
+//! # ⚠️ NOT VALIDATED — SUPPORTING STRUCTURE FOR AN UNVALIDATED DETECTOR
+//!
+//! This file defines a compressed data structure used by the heartbeat
+//! detection pipeline. The detector it feeds has **never been shown to detect
+//! a real human heartbeat from real CSI data** — every test uses synthetic
+//! sine waves. This compressor is mechanically correct on arbitrary input,
+//! but the "heartbeat spectrogram" it stores is only a heartbeat in name.
+//! See `HEARTBEAT_NOT_VALIDATED.md` at the repository root for the full
+//! code review.
+//!
+//! ---
+//!
 //! [`CompressedHeartbeatSpectrogram`] stores a rolling spectrogram with one
 //! [`TemporalTensorCompressor`] per frequency bin, enabling independent
 //! tiering per bin. Hot tier (recent frames) at 8-bit, cold at 3-bit.
